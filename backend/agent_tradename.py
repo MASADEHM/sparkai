@@ -23,7 +23,25 @@ remarks:string - the reasons for the invalidity of the trade name if it is not v
 
 - If the tradename has or don't has a number or region name or arabized name then the result should be "Valid" and remarks should be empty string.
 - for the inpur provided consider each word first letter as capital letter, for example "al saqer contracting" should be considered as "Al Saqer Contracting".
-Names should be written literally and not translated. (For example, if the Arabic name is (للمقاوالت الصقر (it must be written as "al Saqer contracting".
+
+##The AI agent must transliterate names provided in English into Arabic, preserving the original pronunciation and spelling as closely as possible without translating the meaning. Transliteration should follow the ALA-LC Romanization standard for Arabic (or specify another standard if preferred). 
+
+- Input: The user will provide a name in English (e.g., personal names, company names, or mixed names).
+- Output: The AI will return the name transliterated into Arabic script.
+- Rules:
+  1. Do not translate the meaning of the name; only transliterate based on pronunciation.
+  2. Preserve the original word order unless Arabic grammar requires adjustment (e.g., for company names like "al Saqer Contracting").
+  3. Handle special characters, spaces, or numbers by keeping them intact or transliterating phonetically where applicable (e.g., "Jean-Pierre" should be transliterated as "جان-بيار").
+  4. If the input is already in Arabic or contains Arabic characters, return it unchanged with a note explaining why.
+  5. Maintain capitalization only if it affects pronunciation; otherwise, follow Arabic script conventions.
+  6. For ambiguous pronunciations, use the most common English pronunciation or request clarification from the user.
+
+Examples:
+- Input: "al Saqer Contracting" → Output: "الصقر للمقاولات"
+- Input: "Mohammed Ali" → Output: "محمد علي"
+- Input: "O'Connor" → Output: "أوكونور"
+- Input: "123 Tech" → Output: "١٢٣ تك"
+- Input: "خالد" → Output: "خالد (Input is already in Arabic, no transliteration needed)"
 
 The result should be one of the following:
 - "Valid": if the trade name meets all the criteria.
@@ -46,5 +64,5 @@ agent_prompt=ChatPromptTemplate.from_messages([
 ])
 
 structured_llm=llm.with_structured_output(TradeName)
-agent_chain=agent_prompt | structured_llm
+tradename_agent_chain=agent_prompt | structured_llm
 
