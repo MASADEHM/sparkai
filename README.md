@@ -49,6 +49,8 @@ uvicorn app:app --reload
 ```
 The API will be available at `http://127.0.0.1:8000`
 
+Swagger http://localhost:8000/docs
+
 2. Start the Streamlit frontend (in a new terminal):
 ```bash
 streamlit run chat_app.py
@@ -67,6 +69,13 @@ The web interface will be available at `http://localhost:8501`
 
 - POST `/chat`: Main chat endpoint
 - POST `/`: Test endpoint
+- POST `/tradename`: Trade name validation
+- POST `/executivesummary`: Generate executive summary
+- POST `/marketanalysis`: Comprehensive market analysis
+- POST `/fundingrequirements`: Calculate funding requirements
+- POST `/productdescription`: Generate product/service description ✨ NEW
+
+See [API_EXAMPLES.md](API_EXAMPLES.md) for detailed usage examples and request/response formats.
 
 ## Contributing
 
@@ -78,3 +87,39 @@ The web interface will be available at `http://localhost:8501`
 ## License
 
 [Your License Here]
+
+
+## Deployment
+
+### Quick Deploy with Docker Desktop
+
+1. **Test locally:**
+```bash
+.\test-local.ps1
+```
+
+2. **Build and push to ACR:**
+```bash
+.\build-and-push.ps1
+```
+
+3. **Deploy to Azure:**
+```bash
+.\deploy-azure.ps1 -ResourceGroup "sparkai-rg" -AcrName "crfb01" -Location "eastus"
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment guide.
+
+### Manual Deploy to ACR
+
+```bash
+# Build backend
+docker build -t sparkai:1.1 .
+
+# Login to ACR
+az acr login -n crfb01.azurecr.io
+
+# Tag and push
+docker tag sparkai:1.1 crfb01.azurecr.io/sparkai:1.1
+docker push crfb01.azurecr.io/sparkai:1.1
+```

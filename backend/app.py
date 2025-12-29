@@ -5,6 +5,7 @@ from backend.agent_tradename import tradename_agent_chain
 from backend.agent_executivesummary import agent_summary_chain
 from backend.agent_marketAnalysis import market_analysis_chain
 from backend.agent_fundingrequirements import funding_requirements_chain
+from backend.agent_productdescription import product_description_chain
 from fastapi.middleware.cors import CORSMiddleware
 
 app=FastAPI()
@@ -34,6 +35,11 @@ class FundingRequirementsInput(BaseModel):
     target_market: str
     tam: float
     som: float
+    language: str = "English"
+
+class ProductDescriptionInput(BaseModel):
+    industry: str
+    business_model: str
     language: str = "English"
 
   
@@ -114,6 +120,20 @@ async def generate_funding_requirements(input: FundingRequirementsInput):
         "startup_costs_aed": funding_response.startup_costs_aed,
         "operational_costs_monthly_aed": funding_response.operational_costs_monthly_aed,
         "use_of_funds": funding_response.use_of_funds
+    }
+
+# Endpoint for product/service description
+@app.post("/productdescription")
+async def generate_product_description(input: ProductDescriptionInput):
+    # Generate product/service description based on industry and business model
+    description_response = product_description_chain.invoke({
+        "industry": input.industry,
+        "business_model": input.business_model,
+        "language": input.language
+    })
+    
+    return {
+        "description": description_response.description
     }
 
     

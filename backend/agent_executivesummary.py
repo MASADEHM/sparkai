@@ -4,8 +4,15 @@ from langchain.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 from backend.state import State
 from backend.schema import ExecutiveSummary
+from pydantic import BaseModel,Field
+
 
 load_dotenv()
+
+class ExecutiveSummary(BaseModel):
+    summary: str = Field(description="a brief summary based on vision and mission analysis")
+    vision_analysis: str = Field(description="analysis of the vision statement")
+    mission_analysis: str = Field(description="analysis of the mission statement")
 
 #system messages
 system_executivesummary = """

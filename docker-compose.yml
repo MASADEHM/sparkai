@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sparkai-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AZURE_OPENAI_CHAT_MODEL=${AZURE_OPENAI_CHAT_MODEL}
+      - AZURE_OPENAI_EMEBDDING_DEPLOYMENT=${AZURE_OPENAI_EMEBDDING_DEPLOYMENT}
+      - AZURE_OPENAI_EMEBDDING_MODEL=${AZURE_OPENAI_EMEBDDING_MODEL}
+      - AZURE_OPENAI_API_EMEBDDING_VERSION=${AZURE_OPENAI_API_EMEBDDING_VERSION}
+    volumes:
+      - ./backend/rag/dbchroma:/app/backend/rag/dbchroma
+    networks:
+      - sparkai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: sparkai-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - sparkai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  sparkai-network:
+    driver: bridge
+

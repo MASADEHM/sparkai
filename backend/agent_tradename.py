@@ -3,9 +3,18 @@ from langchain_openai.chat_models import ChatOpenAI,AzureChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 from backend.state import State
-from backend.schema import TradeName
-
+from pydantic import BaseModel,Field
 load_dotenv()
+
+class TradeName(BaseModel):
+    hasNumber:bool = Field(default=False, description="Indicates if the trade name has a number")
+    hasRegionName:bool = Field(default=False, description="Indicates if the trade name has a region name")
+    hasArabizedName:bool = Field(default=False, description="Indicates if the trade name has an Arabized name")
+    hasGlobalName:bool = Field(default=False, description="Indicates if the trade name has a global name")
+    arabicEquivalentName:str = Field(default="", description="The Arabic equivalent of the trade name")
+    result:bool=Field(default=False,description="this will be used tell user if the tradename is valid or not")
+    remarks:str=Field(default="",description="return the reject reason by LLM")
+
 
 #system messages
 system_tradename="""

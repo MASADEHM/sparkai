@@ -1,7 +1,3 @@
-# Git
-.git
-.gitignore
-
 # Python
 __pycache__/
 *.py[cod]
@@ -9,6 +5,8 @@ __pycache__/
 *.so
 .Python
 env/
+venv/
+ENV/
 build/
 develop-eggs/
 dist/
@@ -25,23 +23,54 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
+# Virtual environments
 venv/
 ENV/
+env/
 
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
 
 # Docker
-Dockerfile
+Dockerfile*
+docker-compose*.yml
 .dockerignore
 
-# Application specific
-*.log
+# Scripts
+*.ps1
+*.sh
 
-*.db
-backend/rag/dbchroma/
-*.sqlite3
+# Tests
+tests/
+test/
+*.test.py
+test_*.py
+pytest.ini
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Temp files
+tmp/
+temp/
+*.tmp

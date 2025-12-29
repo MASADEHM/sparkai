@@ -3,6 +3,7 @@ from datetime import datetime
 import requests
 import uuid
 import json
+import os
 
 # Initialize session state for storing chat history and thread_id
 if 'messages' not in st.session_state:
@@ -10,8 +11,9 @@ if 'messages' not in st.session_state:
 if 'thread_id' not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())  # Generate a unique thread_id per session
 
-# FastAPI endpoint
-API_URL = "http://127.0.0.1:8000/chat"
+# FastAPI endpoint - Use environment variable or default to localhost
+API_BASE_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
+API_URL = f"{API_BASE_URL}/chat"
 
 # Streamlit app title
 st.title("Inventix AI")
