@@ -1,14 +1,44 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from backend.agent import graph
-from backend.agent_tradename import tradename_agent_chain
-from backend.agent_executivesummary import agent_summary_chain
-from backend.agent_marketAnalysis import market_analysis_chain
-from backend.agent_fundingrequirements import funding_requirements_chain
-from backend.agent_productdescription import product_description_chain
+from backend.agent_tradename import tradename_agent_chain, detect_abbreviation
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
+import secrets
 
-app=FastAPI()
+load_dotenv()
+
+app = FastAPI()
+security = HTTPBasic()
+
+
+def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
+    """Verify HTTP Basic Auth credentials against environment variables."""
+    expected_username = os.getenv("API_USERNAME", "").strip()
+    expected_password = os.getenv("API_PASSWORD", "").strip()
+    if not expected_username or not expected_password:
+        raise HTTPException(
+            status_code=503,
+            detail="API authentication is not configured",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    correct_username = secrets.compare_digest(
+        credentials.username.encode("utf-8"),
+        expected_username.encode("utf-8"),
+    )
+    correct_password = secrets.compare_digest(
+        credentials.password.encode("utf-8"),
+        expected_password.encode("utf-8"),
+    )
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins
@@ -20,121 +50,48 @@ class ChatInput(BaseModel):
     messages: list[str]
     thread_id: str
 
-class MarketAnalysisInput(BaseModel):
-    industry: str
-    business_model: str
-    emirate: str
-    area: str = None  # Optional: if not provided, analysis covers whole emirate
-    language: str = "English"
 
-class FundingRequirementsInput(BaseModel):
-    industry: str
-    business_model: str
-    emirate: str
-    area: str = None
-    target_market: str
-    tam: float
-    som: float
-    language: str = "English"
-
-class ProductDescriptionInput(BaseModel):
-    industry: str
-    business_model: str
-    language: str = "English"
-
+class TradenameInput(BaseModel):
+    name: str
   
 @app.post("/")
-async def chat():
+async def chat(_: str = Depends(verify_credentials)):
     
     config = {"configurable": {"thread_id":"1"}}
     response = await graph.ainvoke({"messages": "Hello"}, config=config)
     return response["messages"]
 # Endpoint for the main chat
 @app.post("/chat")
-async def chat(input: ChatInput):
+async def chat(input: ChatInput, _: str = Depends(verify_credentials)):
     config = {"configurable": {"thread_id": input.thread_id}}
     response = await graph.ainvoke({"messages": input.messages}, config=config)
     return response["messages"][-1].content
 
 # Endpoint for the tradename
 @app.post("/tradename")
-async def chat(input: ChatInput):
-    config = {"configurable": {"thread_id": input.thread_id}}
-    response = await tradename_agent_chain.ainvoke({"messages": input.messages}, config=config)
-     # Convert the TradeName object to a dictionary for the response
+async def tradename(input: TradenameInput, _: str = Depends(verify_credentials)):
+    # Normalize whitespace: collapse multiple spaces (e.g. "A.L.  Trading" -> "A.L. Trading")
+    # and trim leading/trailing. Prevents inconsistent LLM behavior on messy input.
+    normalized_name = " ".join(input.name.split())
+
+    # Hybrid abbreviation detection: regex catches obvious acronyms (ABC, IT, MNS);
+    # LLM catches edge cases. Either can flag it.
+    regex_has_abbr = detect_abbreviation(normalized_name)
+    response = tradename_agent_chain.invoke({"name": normalized_name})
+    has_abbreviation = regex_has_abbr or response.hasAbbreviation
+
     return {
         "hasNumber": response.hasNumber,
+        "hasGulf": response.hasGulf,
         "hasRegionName": response.hasRegionName,
         "hasArabizedName": response.hasArabizedName,
-        "hasGlobalName": response.hasGlobalName,
+        "hasTrademark": response.hasTrademark,
+        "hasAbbreviation": has_abbreviation,
         "arabicEquivalentName": response.arabicEquivalentName,
-        "result": response.result,
-        "remarks": response.remarks       
+        "valid": response.valid,
+        "remarks": response.remarks
     }
-
 #  Endpoint for the executive summary
-@app.post("/executivesummary")
-async def generate_summary(input: ChatInput):
-    config = {"configurable": {"thread_id": input.thread_id}}
-    response = await agent_summary_chain.ainvoke({"messages": input.messages}, config=config)
-    return {
-        "summary": response.summary,
-        "vision_analysis": response.vision_analysis,
-        "mission_analysis": response.mission_analysis
-    }
-
-# Endpoint for the market analysis
-@app.post("/marketanalysis")
-async def generate_market_analysis(input: MarketAnalysisInput):
-    print(input)
-    response = market_analysis_chain.invoke({
-        "industry": input.industry,
-        "business_model": input.business_model,
-        "emirate": input.emirate,
-        "area": input.area,
-        "language": input.language
-    })
-    return {
-        "target_market": response.target_market,
-        "market_size": response.market_size.dict(),
-        "competitors": [competitor.dict() for competitor in response.competitors],
-        "competitive_advantage": response.competitive_advantage
-    }
-
-# Endpoint for funding requirements analysis
-@app.post("/fundingrequirements")
-async def generate_funding_requirements(input: FundingRequirementsInput):
-    # Generate funding requirements based on market analysis
-    funding_response = funding_requirements_chain.invoke({
-        "industry": input.industry,
-        "business_model": input.business_model,
-        "emirate": input.emirate,
-        "area": input.area if input.area else "Not specified",
-        "target_market": input.target_market,
-        "tam": input.tam,
-        "som": input.som,
-        "language": input.language
-    })
-    
-    return {
-        "startup_costs_aed": funding_response.startup_costs_aed,
-        "operational_costs_monthly_aed": funding_response.operational_costs_monthly_aed,
-        "use_of_funds": funding_response.use_of_funds
-    }
-
-# Endpoint for product/service description
-@app.post("/productdescription")
-async def generate_product_description(input: ProductDescriptionInput):
-    # Generate product/service description based on industry and business model
-    description_response = product_description_chain.invoke({
-        "industry": input.industry,
-        "business_model": input.business_model,
-        "language": input.language
-    })
-    
-    return {
-        "description": description_response.description
-    }
 
     
 
