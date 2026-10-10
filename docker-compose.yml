@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -8,19 +6,16 @@ services:
     container_name: sparkai-backend
     ports:
       - "8000:8000"
+    env_file: .env
     environment:
-      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - AZURE_OPENAI_CHAT_MODEL=${AZURE_OPENAI_CHAT_MODEL}
-      - AZURE_OPENAI_EMEBDDING_DEPLOYMENT=${AZURE_OPENAI_EMEBDDING_DEPLOYMENT}
-      - AZURE_OPENAI_EMEBDDING_MODEL=${AZURE_OPENAI_EMEBDDING_MODEL}
-      - AZURE_OPENAI_API_EMEBDDING_VERSION=${AZURE_OPENAI_API_EMEBDDING_VERSION}
+      - CHECKPOINT_DB=/app/data/checkpoints.sqlite
     volumes:
       - ./backend/rag/dbchroma:/app/backend/rag/dbchroma
+      - ./data:/app/data
     networks:
       - sparkai-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -34,12 +29,14 @@ services:
       - "8501:8501"
     environment:
       - API_URL=http://backend:8000
+      - API_USERNAME=${API_USERNAME}
+      - API_PASSWORD=${API_PASSWORD}
     depends_on:
       - backend
     networks:
       - sparkai-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -47,4 +44,3 @@ services:
 networks:
   sparkai-network:
     driver: bridge
-

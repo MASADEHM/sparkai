@@ -1,16 +1,28 @@
+from dotenv import load_dotenv
+
+load_dotenv()  # before the backend imports, which read env vars at import time
+
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from pydantic import BaseModel
-from backend.agent import graph
-from backend.agent_tradename import tradename_agent_chain, detect_abbreviation
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from pydantic import BaseModel
+from backend.agent import builder
+from backend.agent_tradename import tradename_agent_chain, detect_abbreviation
 import os
 import secrets
 
-load_dotenv()
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Chat history survives restarts; set CHECKPOINT_DB to a mounted volume in Docker.
+    async with AsyncSqliteSaver.from_conn_string(os.getenv("CHECKPOINT_DB", "checkpoints.sqlite")) as saver:
+        app.state.graph = builder.compile(checkpointer=saver)
+        yield
+
+
+app = FastAPI(lifespan=lifespan)
 security = HTTPBasic()
 
 
@@ -39,13 +51,19 @@ def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
             headers={"WWW-Authenticate": "Basic"},
         )
     return credentials.username
+
+
+# Clients must send the Authorization header explicitly; browsers won't attach
+# cached/ambient credentials cross-origin. Restrict with CORS_ORIGINS=https://a.com,https://b.com
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allows all headers
+    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+
 class ChatInput(BaseModel):
     messages: list[str]
     thread_id: str
@@ -53,19 +71,20 @@ class ChatInput(BaseModel):
 
 class TradenameInput(BaseModel):
     name: str
-  
-@app.post("/")
-async def chat(_: str = Depends(verify_credentials)):
-    
-    config = {"configurable": {"thread_id":"1"}}
-    response = await graph.ainvoke({"messages": "Hello"}, config=config)
-    return response["messages"]
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 # Endpoint for the main chat
 @app.post("/chat")
 async def chat(input: ChatInput, _: str = Depends(verify_credentials)):
     config = {"configurable": {"thread_id": input.thread_id}}
-    response = await graph.ainvoke({"messages": input.messages}, config=config)
+    response = await app.state.graph.ainvoke({"messages": input.messages}, config=config)
     return response["messages"][-1].content
+
 
 # Endpoint for the tradename
 @app.post("/tradename")
@@ -77,7 +96,7 @@ async def tradename(input: TradenameInput, _: str = Depends(verify_credentials))
     # Hybrid abbreviation detection: regex catches obvious acronyms (ABC, IT, MNS);
     # LLM catches edge cases. Either can flag it.
     regex_has_abbr = detect_abbreviation(normalized_name)
-    response = tradename_agent_chain.invoke({"name": normalized_name})
+    response = await tradename_agent_chain.ainvoke({"name": normalized_name})
     has_abbreviation = regex_has_abbr or response.hasAbbreviation
 
     return {
@@ -91,12 +110,3 @@ async def tradename(input: TradenameInput, _: str = Depends(verify_credentials))
         "valid": response.valid,
         "remarks": response.remarks
     }
-#  Endpoint for the executive summary
-
-    
-
-#use the below command to run the fast api server
-
-# if __name__ == "__main__":
-#     uvicorn.run(app, host="127.0.0.1", port=8000)
-# # uvicorn main:app --reload

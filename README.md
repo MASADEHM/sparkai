@@ -17,7 +17,7 @@ A conversational AI application built with FastAPI backend and Streamlit fronten
 
 ## Prerequisites
 
-- Python 3.8+
+- Python 3.11+
 - Azure OpenAI API access
 - Required Python packages (install via requirements.txt)
 
@@ -31,7 +31,22 @@ AZURE_OPENAI_CHAT_MODEL=your_chat_model
 AZURE_OPENAI_EMEBDDING_DEPLOYMENT=your_embedding_deployment
 AZURE_OPENAI_EMEBDDING_MODEL=your_embedding_model
 AZURE_OPENAI_API_EMEBDDING_VERSION=your_api_version
+AZURE_OPENAI_API_KEY=your_api_key
+OPENAI_API_VERSION=your_api_version
+API_USERNAME=choose_a_username
+API_PASSWORD=choose_a_password
+TAVILY_API_KEY=your_tavily_key
+SMTP_SERVER=your_smtp_host
+SMTP_PORT=25
+# Optional: if set, STARTTLS + login are used
+SMTP_USER=
+SMTP_PWD=
+# Optional
+CHECKPOINT_DB=checkpoints.sqlite
+CORS_ORIGINS=*
 ```
+
+To rebuild the vector store from PDFs in `backend/rag/docs/`: `python -m backend.rag.docsloader`
 
 2. Install required packages:
 ```bash
@@ -43,9 +58,6 @@ pip install -r requirements.txt
 1. Start the FastAPI backend server:
 ```bash
 uvicorn backend.app:app --reload
-Or
-cd backend
-uvicorn app:app --reload
 ```
 The API will be available at `http://127.0.0.1:8000`
 
@@ -67,13 +79,11 @@ The web interface will be available at `http://localhost:8501`
 
 ## API Endpoints
 
+All endpoints except `/health` require HTTP Basic auth (`API_USERNAME` / `API_PASSWORD`).
+
+- GET `/health`: Health check
 - POST `/chat`: Main chat endpoint
-- POST `/`: Test endpoint
 - POST `/tradename`: Trade name validation
-- POST `/executivesummary`: Generate executive summary
-- POST `/marketanalysis`: Comprehensive market analysis
-- POST `/fundingrequirements`: Calculate funding requirements
-- POST `/productdescription`: Generate product/service description ✨ NEW
 
 See [API_EXAMPLES.md](API_EXAMPLES.md) for detailed usage examples and request/response formats.
 
