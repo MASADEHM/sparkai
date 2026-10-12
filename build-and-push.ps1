@@ -1,9 +1,12 @@
 # Simple script to build and push Docker images to Azure Container Registry
-# Usage: .\build-and-push.ps1
+# Usage: .\build-and-push.ps1 -AcrName <your-acr> [-ImageVersion 1.2]
 
-# Configuration - Update these values
-$ACR_NAME = "crfb01"  # Your ACR name (without .azurecr.io)
-$IMAGE_VERSION = "1.2"  # Increment this for new versions
+param(
+    [Parameter(Mandatory)][string]$AcrName,  # ACR name without .azurecr.io
+    [string]$ImageVersion = "1.2"            # Increment this for new versions
+)
+$ACR_NAME = $AcrName
+$IMAGE_VERSION = $ImageVersion
 
 # Derived variables
 $ACR_LOGIN_SERVER = "${ACR_NAME}.azurecr.io"

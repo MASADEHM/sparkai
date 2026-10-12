@@ -1,125 +1,113 @@
-#  AI Chat Application
+# SparkAI
 
-A conversational AI application built with FastAPI backend and Streamlit frontend, utilizing Azure OpenAI services and RAG (Retrieval Augmented Generation) for enhanced responses.
+A conversational AI assistant with a FastAPI backend and a Streamlit frontend. It runs on Azure OpenAI and uses LangGraph to drive a tool-calling agent, with RAG over a Chroma vector store.
+
+## Features
+
+- Chat with per-thread history, persisted to SQLite so it survives restarts
+- Email OTP verification before the agent can use its sensitive tools
+- Agent tools: company document search (RAG), web search (Tavily), email sending
+- `/tradename` endpoint that validates a trade name against UAE naming rules
+- HTTP Basic auth on every endpoint except `/health`
+- Docker Compose setup for running backend and frontend together
 
 ## Project Structure
-```
-/
+
+```text
 ├── backend/
-│   ├── rag/
-│   │   ├── dbchroma/        # Chroma vector database
-│   │   └── ragchain.py      # RAG implementation
-│   ├── agent.py
-│   └── app.py              # FastAPI server
+│   ├── app.py              # FastAPI server
+│   ├── agent.py            # Chat agent (LangGraph)
+│   ├── agent_tradename.py  # Trade name validation chain
+│   ├── prompts.py          # System prompts
+│   ├── tools.py            # Agent tools (search, email, OTP)
+│   └── rag/
+│       ├── ragchain.py     # RAG chain
+│       ├── docsloader.py   # Builds the vector store from PDFs
+│       ├── docs/           # Source documents
+│       └── dbchroma/       # Chroma vector store
 ├── chat_app.py             # Streamlit frontend
-└── .env                    # Environment variables
+├── docker-compose.yml
+└── .env.example            # Environment variable template
 ```
 
 ## Prerequisites
 
-- Python 3.8+
-- Azure OpenAI API access
-- Required Python packages (install via requirements.txt)
+- Python 3.11+
+- An Azure OpenAI resource with a chat deployment and an embedding deployment
+- A [Tavily](https://tavily.com) API key
+- An SMTP server, used to send OTP codes
 
-## Environment Setup
+## Setup
 
-1. Create a `.env` file in the root directory with the following variables:
-```
-AZURE_OPENAI_ENDPOINT=your_azure_endpoint
-OPENAI_API_KEY=your_api_key
-AZURE_OPENAI_CHAT_MODEL=your_chat_model
-AZURE_OPENAI_EMEBDDING_DEPLOYMENT=your_embedding_deployment
-AZURE_OPENAI_EMEBDDING_MODEL=your_embedding_model
-AZURE_OPENAI_API_EMEBDDING_VERSION=your_api_version
-```
-
-2. Install required packages:
 ```bash
+git clone <this-repo-url>
+cd sparkai
+cp .env.example .env        # then fill in your values
 pip install -r requirements.txt
 ```
 
-## Running the Application
+Every variable is described in [.env.example](.env.example).
 
-1. Start the FastAPI backend server:
+To rebuild the vector store from the PDFs in `backend/rag/docs/`, run:
+
 ```bash
-uvicorn backend.app:app --reload
-Or
-cd backend
-uvicorn app:app --reload
+python -m backend.rag.docsloader
 ```
-The API will be available at `http://127.0.0.1:8000`
 
-Swagger http://localhost:8000/docs
+## Running
 
-2. Start the Streamlit frontend (in a new terminal):
+### Locally
+
 ```bash
+# Backend: http://127.0.0.1:8000 (Swagger UI at /docs)
+uvicorn backend.app:app --reload
+
+# Frontend, in a second terminal: http://localhost:8501
 streamlit run chat_app.py
 ```
-The web interface will be available at `http://localhost:8501`
 
-## Features
+### With Docker Compose
 
-- Real-time chat interface
-- Integration with Azure OpenAI
-- RAG-powered responses using Chroma vector database
-- Session management for chat history
-- Thread-based conversation tracking
+```bash
+docker compose up --build
+```
 
-## API Endpoints
+Docker Compose reads `.env` for both services. Chat history is stored in `./data`.
 
-- POST `/chat`: Main chat endpoint
-- POST `/`: Test endpoint
-- POST `/tradename`: Trade name validation
-- POST `/executivesummary`: Generate executive summary
-- POST `/marketanalysis`: Comprehensive market analysis
-- POST `/fundingrequirements`: Calculate funding requirements
-- POST `/productdescription`: Generate product/service description ✨ NEW
+## API
 
-See [API_EXAMPLES.md](API_EXAMPLES.md) for detailed usage examples and request/response formats.
+All endpoints except `/health` require HTTP Basic auth using `API_USERNAME` / `API_PASSWORD`.
+
+| Method | Path         | Description              |
+|--------|--------------|--------------------------|
+| GET    | `/health`    | Health check             |
+| POST   | `/chat`      | Chat with the agent      |
+| POST   | `/tradename` | Validate a trade name    |
+
+Request and response examples are in [API_EXAMPLES.md](API_EXAMPLES.md).
+
+## Deployment
+
+The deployment guides target Azure Container Registry and Azure Container Apps. See [DEPLOYMENT.md](DEPLOYMENT.md) and [QUICKSTART.md](QUICKSTART.md).
+
+To build and push the images by hand:
+
+```bash
+docker build -t <your-acr>.azurecr.io/sparkai-backend:latest -f Dockerfile .
+docker build -t <your-acr>.azurecr.io/sparkai-frontend:latest -f Dockerfile.streamlit .
+az acr login -n <your-acr>
+docker push <your-acr>.azurecr.io/sparkai-backend:latest
+docker push <your-acr>.azurecr.io/sparkai-frontend:latest
+```
+
+## Security
+
+- Never commit `.env`. It is already listed in `.gitignore`.
+- In production, set strong values for `API_USERNAME` and `API_PASSWORD`, and restrict `CORS_ORIGINS`.
 
 ## Contributing
 
 1. Fork the repository
-2. Create a new branch
-3. Make your changes
-4. Submit a pull request
-
-## License
-
-[Your License Here]
-
-
-## Deployment
-
-### Quick Deploy with Docker Desktop
-
-1. **Test locally:**
-```bash
-.\test-local.ps1
-```
-
-2. **Build and push to ACR:**
-```bash
-.\build-and-push.ps1
-```
-
-3. **Deploy to Azure:**
-```bash
-.\deploy-azure.ps1 -ResourceGroup "sparkai-rg" -AcrName "crfb01" -Location "eastus"
-```
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment guide.
-
-### Manual Deploy to ACR
-
-```bash
-# Build backend
-docker build -t sparkai:1.1 .
-
-# Login to ACR
-az acr login -n crfb01.azurecr.io
-
-# Tag and push
-docker tag sparkai:1.1 crfb01.azurecr.io/sparkai:1.1
-docker push crfb01.azurecr.io/sparkai:1.1
-```
+2. Create a feature branch
+3. Commit your changes
+4. Open a pull request

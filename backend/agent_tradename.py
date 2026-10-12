@@ -1,8 +1,7 @@
 import re
 from langchain_openai.chat_models import AzureChatOpenAI
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
-from backend.state import State
 from pydantic import BaseModel, Field
 
 load_dotenv()
@@ -13,7 +12,8 @@ _ABBREVIATION_RE = re.compile(r'\b[A-Z]{2,}\b')
 
 
 def detect_abbreviation(name: str) -> bool:
-    return bool(_ABBREVIATION_RE.search(name))
+    # An all-caps name ("AL SAQER CONTRACTING") is just shouting, not acronyms; leave it to the LLM.
+    return not name.isupper() and bool(_ABBREVIATION_RE.search(name))
 
 class TradeName(BaseModel):
     hasNumber:bool = Field(default=False, description="Indicates if the trade name has a number")
@@ -79,10 +79,9 @@ Set valid to false and populate remarks ONLY when the name fails one of the vali
 - The name should not include Allaah's name nor "God" or His divine attributes, for example (al wader, al alee, al razzaq, etc ….).
 - The name should not include the name of a country or government.
 - The name cannot include any restricted names such as global political organisations, religious sectarian organisation etc. (For example, FBI, Mafia.).
-- The name should not include any of the punctuation marks, such as (., !?/).
+- The name should not include any of the punctuation marks, such as (, !?/). Periods used in abbreviations (e.g. "A.L.") are allowed.
 """
 
-#llm=ChatOpenAI(model="gpt-4o-mini")
 llm=AzureChatOpenAI(model="gpt-4o-mini")
 
 agent_prompt=ChatPromptTemplate.from_messages([
