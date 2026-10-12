@@ -40,7 +40,7 @@ llm = AzureChatOpenAI(
 # Create prompt template
 prompt = ChatPromptTemplate.from_template(
     """
-    You are inventixAI, a helpful assistant for company policy queries. Answer the following question based solely on the provided context, 
+    You are Spark AI, a helpful assistant for company policy queries. Answer the following question based solely on the provided context, 
     which contains company policies, procedures, or regulations. If multiple documents are included in the context, synthesize the information 
     to provide a concise and accurate answer.
     

@@ -12,6 +12,9 @@ SMTPPWD=os.getenv("SMTP_PWD")
 SMTPSERVER=os.getenv("SMTP_SERVER")
 SMTPPORT=os.getenv("SMTP_PORT")
 SMTPUSER=os.getenv("SMTP_USER")
+SMTPFROM=os.getenv("SMTP_FROM", "noreply@example.com")
+# ponytail: allowlist from env until a real user directory exists
+ALLOWED_EMAILS={e.strip().lower() for e in os.getenv("ALLOWED_EMAILS", "").split(",") if e.strip()}
 OTP_TTL_SECONDS = 300
 
 # ponytail: in-process dicts — lost on restart (user just re-verifies) and not shared
@@ -28,12 +31,12 @@ def _thread_id(config: RunnableConfig) -> str:
 
 def _find_user(email: str) -> bool:
     # TODO: replace with the real user directory lookup
-    return email.strip().lower() == "muhcis@gmail.com"
+    return email.strip().lower() in ALLOWED_EMAILS
 
 
 def _send(to: str, subject: str, body: str) -> None:
     msg = MIMEText(body, 'plain')
-    msg['From'] = "noreply@inventix.com"
+    msg['From'] = SMTPFROM
     msg['To'] = to
     msg['Subject'] = subject
     with smtplib.SMTP(SMTPSERVER, int(SMTPPORT)) as server:

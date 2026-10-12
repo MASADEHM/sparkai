@@ -14,7 +14,7 @@ if 'messages' not in st.session_state:
 if 'thread_id' not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())  # Generate a unique thread_id per session
 
-st.title("Inventix AI")
+st.title("Spark AI")
 
 if st.button("Clear Chat"):
     st.session_state.messages = []
